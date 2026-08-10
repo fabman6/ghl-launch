@@ -48,7 +48,7 @@ dist/ghl-launch.skill                 one-click installable bundle
 ### Option 2: Claude Code (git clone)
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/ghl-launch.git ~/.claude/skills/ghl-launch
+git clone https://github.com/fabman6/ghl-launch.git ~/.claude/skills/ghl-launch
 ```
 
 The repo is laid out so the clone target *is* the skill folder. Restart Claude Code and it is live.
@@ -67,7 +67,7 @@ Download the repo as a ZIP, unzip it, and drop the folder into `~/.claude/skills
 
 ## Install ghl-goat too
 
-[**ghl-goat**](https://github.com/YOUR-USERNAME/ghl-goat) is the companion skill and the reason this one stays short. It owns MCP tool mechanics, Ask AI and Workflow AI prompt craft, doc research, Camoufox browser vision, and the weekly feature scan. GHL Launch owns the launch sequence and leans on ghl-goat for everything else.
+[**ghl-goat**](https://github.com/fabman6/ghl-goat) is the companion skill and the reason this one stays short. It owns MCP tool mechanics, Ask AI and Workflow AI prompt craft, doc research, Camoufox browser vision, and the weekly feature scan. GHL Launch owns the launch sequence and leans on ghl-goat for everything else.
 
 GHL Launch works standalone (the copy rules it needs are summarized in `prompt-pack.md`), but the pair is the real product.
 
