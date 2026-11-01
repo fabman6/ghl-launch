@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Ban, Droplets, ImagePlus, Loader2, RotateCcw, ScanFace, Sparkles } from "lucide-react";
+import { Ban, Droplets, Gauge, ImagePlus, Loader2, RotateCcw, ScanFace, Sparkles, X } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -7,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BG_PRESETS, DEFAULT_FX, FX_PRESETS, presetBackground } from "@/lib/studio/effects";
+import { deleteBackground, listBackgrounds, saveBackground, urlFor } from "@/lib/studio/bgstore";
 import { VideoView } from "./MediaBits";
 
 function Range({ label, value, onChange, min = 0, max = 1, hint }) {
@@ -38,11 +40,36 @@ export default function EffectsPanel({ session, snap, open, onOpenChange }) {
   const fileRef = useRef(null);
   const brand = snap.state.brand?.color;
   const thumbs = useMemo(() => (open ? Object.fromEntries(BG_PRESETS.map((p) => [p.id, thumb(p.id, brand)])) : {}), [open, brand]);
+  const [saved, setSaved] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const refreshSaved = () => listBackgrounds().then(setSaved);
 
   useEffect(() => {
-    if (open) setFx(snap.fx ?? DEFAULT_FX);
+    if (open) {
+      setFx(snap.fx ?? DEFAULT_FX);
+      refreshSaved();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  const onUpload = async (file) => {
+    setUploading(true);
+    try {
+      const item = await saveBackground(file);
+      await refreshSaved();
+      update({ background: "image", bgImage: `stored:${item.id}` });
+    } catch (e) {
+      toast.error(e.message || "Could not save that image");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const onDelete = async (id) => {
+    await deleteBackground(id);
+    if (fx.bgImage === `stored:${id}`) update({ background: "none", bgImage: null });
+    refreshSaved();
+  };
 
   const update = (patch) => {
     setFx((prev) => {
@@ -95,6 +122,15 @@ export default function EffectsPanel({ session, snap, open, onOpenChange }) {
               </div>
               <Switch checked={!!fx.autoFrame} onCheckedChange={(v) => update({ autoFrame: v })} />
             </div>
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <div className="flex items-center gap-1.5 text-sm font-medium">
+                  <Gauge className="h-4 w-4 text-primary" /> Lighter mode (720p)
+                </div>
+                <div className="text-xs text-muted-foreground">Processes effects at 720p. Turn on if video stutters or your computer runs hot.</div>
+              </div>
+              <Switch checked={fx.quality === "720p"} onCheckedChange={(v) => update({ quality: v ? "720p" : "1080p" })} />
+            </div>
             <Button
               variant="ghost"
               size="sm"
@@ -128,12 +164,29 @@ export default function EffectsPanel({ session, snap, open, onOpenChange }) {
                 </button>
                 <button
                   onClick={() => fileRef.current?.click()}
-                  className={`flex aspect-video flex-col items-center justify-center gap-1 rounded-lg border text-xs ${
-                    fx.background === "image" && fx.bgImage && !String(fx.bgImage).startsWith("preset:") ? "border-primary ring-2 ring-primary/40" : "hover:bg-accent"
-                  }`}
+                  disabled={uploading}
+                  className="flex aspect-video flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-xs hover:bg-accent"
                 >
-                  <ImagePlus className="h-4 w-4" /> Your image
+                  {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />} Upload image
                 </button>
+                {saved.map((b) => (
+                  <div key={b.id} className="group relative">
+                    <button
+                      onClick={() => update({ background: "image", bgImage: `stored:${b.id}` })}
+                      className={`relative block aspect-video w-full overflow-hidden rounded-lg border ${bgActive(`stored:${b.id}`) ? "border-primary ring-2 ring-primary/40" : ""}`}
+                      title={b.name}
+                    >
+                      <img src={urlFor(b)} alt="" className="h-full w-full object-cover" />
+                    </button>
+                    <button
+                      onClick={() => onDelete(b.id)}
+                      className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-white opacity-0 transition group-hover:opacity-100"
+                      title="Remove from saved backgrounds"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
                 {BG_PRESETS.map((p) => (
                   <button
                     key={p.id}
@@ -153,12 +206,12 @@ export default function EffectsPanel({ session, snap, open, onOpenChange }) {
                 onChange={(e) => {
                   const f = e.target.files?.[0];
                   e.target.value = "";
-                  if (f) update({ background: "image", bgImage: URL.createObjectURL(f) });
+                  if (f) onUpload(f);
                 }}
               />
               {fx.background === "blur" && <Range label="Blur strength" value={fx.blur ?? 0.6} onChange={(v) => update({ blur: v })} />}
               <p className="text-xs text-muted-foreground">
-                Backgrounds are cut out on your device with edge refinement around hair and shoulders. Even, front-facing light gives the cleanest edges.
+                Backgrounds are cut out on your device with edge refinement around hair and shoulders. Uploaded images are saved in this browser for next time and never leave your computer. Even, front-facing light gives the cleanest edges.
               </p>
             </TabsContent>
 

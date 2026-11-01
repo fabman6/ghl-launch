@@ -12,7 +12,7 @@
 import { base44 } from "@/api/base44Client";
 import { invokeFn } from "./api";
 import { Compositor } from "./compositor";
-import { CameraFX, DEFAULT_FX, fxActive } from "./effects";
+import { CameraFX, DEFAULT_FX, fxActive, fxSize } from "./effects";
 import { getCamera, getMicrophone, getScreen } from "./devices";
 import { AudioMixer } from "./mixer";
 import { PeerLink, SLOTS } from "./peer";
@@ -651,7 +651,7 @@ export class StudioSession extends Emitter {
       this.fxLoading = true;
       this.changed();
       try {
-        const engine = new CameraFX({ maxWidth: this.fx.quality === "720p" ? 1280 : 1920, maxHeight: this.fx.quality === "720p" ? 720 : 1080 });
+        const engine = new CameraFX(fxSize(this.fx.quality));
         engine.setBrandColor(this.studioState.brand?.color);
         engine.setSettings(this.fx);
         const out = await engine.start(this.rawCam);
@@ -668,6 +668,8 @@ export class StudioSession extends Emitter {
     // Once running, the engine stays on (pass-through when everything is off)
     // so recordings and guests never see the camera track swap mid-show.
     if (this.fxEngine) {
+      const { maxWidth, maxHeight } = fxSize(this.fx.quality);
+      this.fxEngine.setMaxSize(maxWidth, maxHeight);
       this.fxEngine.setBrandColor(this.studioState.brand?.color);
       this.fxEngine.setSettings(this.fx);
     }

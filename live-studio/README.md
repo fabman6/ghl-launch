@@ -26,8 +26,9 @@ A browser studio for live streaming and podcast recording, in the spirit of Stre
 **Camera effects** (run on each person's own device, so guests get them too)
 - Touch up: skin smoothing that leaves eyes, hair and edges sharp, clarity, low-light boost, plus presets
 - Colour: brightness, contrast, saturation, warmth
-- Background blur and virtual backgrounds (5 built-in looks or your own image), cut out with Google's MediaPipe selfie segmentation and refined at full resolution so edges follow hair and shoulders
+- Background blur and virtual backgrounds (5 built-in looks or your own images, saved in the browser between sessions), cut out with Google's MediaPipe selfie segmentation and refined at full resolution so edges follow hair and shoulders
 - Auto-frame toggle: gently pans and zooms to keep you centred
+- Lighter mode (720p) toggle for slower computers; settings are remembered
 
 **Recording**
 - Composite recording of the program feed (exactly what viewers see)

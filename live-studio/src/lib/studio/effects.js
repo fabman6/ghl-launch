@@ -10,6 +10,7 @@
 //                   -> clarity -> colour -> mask refined against the
 //                   full-res image (joint bilateral) -> light-wrap composite
 import { createTicker } from "./utils";
+import { backgroundUrl } from "./bgstore";
 
 export const DEFAULT_FX = {
   smoothing: 0,
@@ -21,10 +22,15 @@ export const DEFAULT_FX = {
   warmth: 0,
   background: "none", // none | blur | image
   blur: 0.6,
-  bgImage: null, // preset id ("preset:studio") or object URL
+  bgImage: null, // "preset:<id>", "stored:<id>" (saved upload) or an image URL
   autoFrame: false, // keep the subject centred (digital pan/zoom)
   mirror: true,
+  quality: "1080p", // "720p" = lighter processing for slower computers
 };
+
+export function fxSize(quality) {
+  return quality === "720p" ? { maxWidth: 1280, maxHeight: 720 } : { maxWidth: 1920, maxHeight: 1080 };
+}
 
 export const FX_PRESETS = [
   { id: "natural", label: "Natural", fx: { smoothing: 0.35, clarity: 0.25, lowLight: 0, brightness: 0.02, contrast: 0.05, saturation: 0.05, warmth: 0.05 } },
@@ -420,6 +426,12 @@ export class CameraFX {
     this.video.play().catch(() => {});
   }
 
+  /** Change processing resolution on the fly (the output track stays the same). */
+  setMaxSize(maxWidth, maxHeight) {
+    this.maxW = maxWidth;
+    this.maxH = maxHeight;
+  }
+
   setBrandColor(color) {
     if (color && color !== this.brandColor) {
       this.brandColor = color;
@@ -475,19 +487,23 @@ export class CameraFX {
 
   async loadBackground(src) {
     this.bgLoaded = false;
+    const token = (this.bgToken = (this.bgToken ?? 0) + 1);
     let img;
     if (typeof src === "string" && src.startsWith("preset:")) {
       img = presetBackground(src.slice(7), this.brandColor);
     } else {
+      const url = typeof src === "string" && src.startsWith("stored:") ? await backgroundUrl(src.slice(7)) : src;
+      if (!url) return;
       img = await new Promise((resolve, reject) => {
         const i = new Image();
-        i.crossOrigin = "anonymous";
+        if (!url.startsWith("blob:")) i.crossOrigin = "anonymous";
         i.onload = () => resolve(i);
         i.onerror = reject;
-        i.src = src;
+        i.src = url;
       }).catch(() => null);
     }
-    if (!img) return;
+    // A newer choice arrived while this one was loading.
+    if (!img || token !== this.bgToken) return;
     const gl = this.gl;
     gl.bindTexture(gl.TEXTURE_2D, this.bgTex);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, img);
