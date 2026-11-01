@@ -31,6 +31,7 @@ export function defaultStudioState(saved = {}) {
   return {
     layout: saved.layout ?? "grid",
     aspect: saved.aspect ?? "16:9",
+    splits: saved.splits ?? {},
     stage: [],
     showNames: saved.showNames ?? true,
     speakerHighlight: saved.speakerHighlight ?? true,
@@ -60,6 +61,7 @@ export function persistableState(s) {
   return {
     layout: s.layout,
     aspect: s.aspect,
+    splits: s.splits,
     showNames: s.showNames,
     speakerHighlight: s.speakerHighlight,
     banners: s.banners,

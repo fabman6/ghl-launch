@@ -12,6 +12,7 @@
 import { base44 } from "@/api/base44Client";
 import { invokeFn } from "./api";
 import { Compositor } from "./compositor";
+import { CameraFX, DEFAULT_FX, fxActive } from "./effects";
 import { getCamera, getMicrophone, getScreen } from "./devices";
 import { AudioMixer } from "./mixer";
 import { PeerLink, SLOTS } from "./peer";
@@ -91,6 +92,30 @@ class MediaPool {
   }
 }
 
+const FX_KEY = "live-studio-fx";
+
+function loadFx() {
+  try {
+    const fx = JSON.parse(localStorage.getItem(FX_KEY) || "{}");
+    // Object URLs from a previous visit are gone; fall back to no background.
+    if (fx.bgImage && String(fx.bgImage).startsWith("blob:")) {
+      fx.bgImage = null;
+      if (fx.background === "image") fx.background = "none";
+    }
+    return fx;
+  } catch {
+    return {};
+  }
+}
+
+function saveFx(fx) {
+  try {
+    localStorage.setItem(FX_KEY, JSON.stringify(fx));
+  } catch {
+    /* ignore */
+  }
+}
+
 function connId(studioId) {
   const key = `live-studio-conn-${studioId}`;
   try {
@@ -121,7 +146,11 @@ export class StudioSession extends Emitter {
     this.savedSettings = opts.savedSettings || {};
     this.prefs = { quality: "1080p", ...(opts.prefs || {}) };
     this.camTrack = opts.camTrack || null;
+    this.rawCam = this.camTrack;
     this.micTrack = opts.micTrack || null;
+    this.fx = { ...DEFAULT_FX, ...loadFx() };
+    this.fxEngine = null;
+    this.fxError = null;
     this.micOn = !!this.micTrack && (opts.micOn ?? true);
     this.camOn = !!this.camTrack && (opts.camOn ?? true);
     if (this.micTrack) this.micTrack.enabled = this.micOn;
@@ -168,6 +197,7 @@ export class StudioSession extends Emitter {
   // ---------- lifecycle ----------
 
   async connect() {
+    if (this.rawCam && fxActive(this.fx)) await this.applyEffects(this.fx, { quiet: true });
     try {
       const res = await invokeFn("iceServers", { studioId: this.studioId, code: this.code });
       if (Array.isArray(res.data?.iceServers) && res.data.iceServers.length) this.iceServers = res.data.iceServers;
@@ -193,7 +223,7 @@ export class StudioSession extends Emitter {
       name: this.name,
       headline: this.headline,
       code: this.code,
-      media: { mic: this.micOn, cam: this.camOn },
+      media: { mic: this.micOn, cam: this.camOn, mirror: this.fx.mirror !== false },
     });
   }
 
@@ -232,6 +262,8 @@ export class StudioSession extends Emitter {
     this.peers.clear();
     this.compositor.stop();
     for (const t of this.localStream.getTracks()) t.stop();
+    this.rawCam?.stop();
+    this.fxEngine?.stop();
     this.screenStream?.getTracks().forEach((t) => t.stop());
     this.pool.destroy();
     this.mixer.close();
@@ -273,6 +305,9 @@ export class StudioSession extends Emitter {
       live: { ...this.live },
       recFolderName: this.recFolder?.name ?? null,
       localVersion: this.localVersion ?? 0,
+      fx: this.fx,
+      fxError: this.fxError,
+      fxLoading: !!this.fxLoading,
     };
   }
 
@@ -468,6 +503,7 @@ export class StudioSession extends Emitter {
     const next = { ...prev, ...delta };
     this.studioState = next;
     this.compositor.setState(next);
+    if (next.brand?.color !== prev.brand?.color) this.fxEngine?.setBrandColor(next.brand?.color);
     this.syncProgramAudio();
     this.pushState();
     this.handleRecordingState(prev, next);
@@ -585,6 +621,7 @@ export class StudioSession extends Emitter {
     return {
       video: stream ? this.pool.video(id, stream) : null,
       hasVideo: !!stream && camOn,
+      mirror: local ? this.fx.mirror !== false : p.media?.mirror !== false,
       name: local ? this.name : p.name,
       headline: local ? this.headline : p.headline,
       level: micOn ? this.mixer.level(id) : 0,
@@ -599,7 +636,53 @@ export class StudioSession extends Emitter {
   // ---------- local media controls ----------
 
   sendMedia() {
-    this.send({ type: "media", media: { mic: this.micOn, cam: this.camOn, screen: !!this.screenStream } });
+    this.send({ type: "media", media: { mic: this.micOn, cam: this.camOn, screen: !!this.screenStream, mirror: this.fx.mirror !== false } });
+  }
+
+  // ---------- camera effects ----------
+
+  /** Apply touch-up / background / framing / mirror settings to my camera. */
+  async applyEffects(next, { quiet = false } = {}) {
+    const prevMirror = this.fx.mirror;
+    this.fx = { ...DEFAULT_FX, ...next };
+    saveFx(this.fx);
+    if (prevMirror !== this.fx.mirror) this.sendMedia();
+    if (!this.fxEngine && this.rawCam && fxActive(this.fx)) {
+      this.fxLoading = true;
+      this.changed();
+      try {
+        const engine = new CameraFX({ maxWidth: this.fx.quality === "720p" ? 1280 : 1920, maxHeight: this.fx.quality === "720p" ? 720 : 1080 });
+        engine.setBrandColor(this.studioState.brand?.color);
+        engine.setSettings(this.fx);
+        const out = await engine.start(this.rawCam);
+        this.fxEngine = engine;
+        out.enabled = this.camOn;
+        this.swapCamTrack(out);
+      } catch (e) {
+        this.fxError = e.message || "Camera effects aren't supported in this browser.";
+        if (!quiet) this.notify(this.fxError, "warning");
+      } finally {
+        this.fxLoading = false;
+      }
+    }
+    // Once running, the engine stays on (pass-through when everything is off)
+    // so recordings and guests never see the camera track swap mid-show.
+    if (this.fxEngine) {
+      this.fxEngine.setBrandColor(this.studioState.brand?.color);
+      this.fxEngine.setSettings(this.fx);
+    }
+    this.changed();
+  }
+
+  swapCamTrack(track) {
+    const old = this.camTrack;
+    if (old && old !== this.rawCam) old.stop();
+    if (old) this.localStream.removeTrack(old);
+    this.camTrack = track;
+    this.localStream.addTrack(track);
+    for (const p of this.peers.values()) p.setTrack(SLOTS.cam, track);
+    this.pool.remove(this.id);
+    this.localVersion = (this.localVersion ?? 0) + 1;
   }
 
   setMic(on) {
@@ -614,6 +697,7 @@ export class StudioSession extends Emitter {
     if (!this.camTrack) return;
     this.camOn = on;
     this.camTrack.enabled = on;
+    if (this.rawCam) this.rawCam.enabled = on;
     this.sendMedia();
     this.changed();
   }
@@ -629,6 +713,16 @@ export class StudioSession extends Emitter {
     if (this.recorders.size) throw new Error("Stop recording before switching devices.");
     const track = await getCamera({ deviceId, resolution: resolution ?? this.prefs.resolution });
     track.enabled = this.camOn || !this.camTrack;
+    if (this.fxEngine) {
+      // Effects keep their output track; only the camera feeding them changes.
+      const oldRaw = this.rawCam;
+      this.rawCam = track;
+      this.fxEngine.setSource(track);
+      oldRaw?.stop();
+      this.changed();
+      return;
+    }
+    this.rawCam = track;
     const old = this.camTrack;
     if (old) {
       this.localStream.removeTrack(old);

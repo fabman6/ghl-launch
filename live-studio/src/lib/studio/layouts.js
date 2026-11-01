@@ -67,12 +67,54 @@ function stripRects(items, area, aspect, gap, vertical) {
   return items.map((it, i) => ({ id: it.id, x: x0 + i * (tw + gap), y: y0, w: tw, h: th }));
 }
 
+// Layouts whose main/side split the host can drag. Value = share of the
+// stage area given to the main item (width in landscape, height in portrait).
+const SPLITS = {
+  leader: { l: [0.76, 0.4, 0.9], p: [0.66, 0.3, 0.85] },
+  screen: { l: [0.78, 0.4, 0.9], p: [0.55, 0.25, 0.85] },
+};
+
+export function splitKey(layout, W, H) {
+  return SPLITS[layout] ? `${layout}-${H > W ? "p" : "l"}` : null;
+}
+
+function splitValue(layout, portrait, splits) {
+  const cfg = SPLITS[layout]?.[portrait ? "p" : "l"];
+  if (!cfg) return 0;
+  const v = splits?.[`${layout}-${portrait ? "p" : "l"}`];
+  return Math.min(cfg[2], Math.max(cfg[1], typeof v === "number" ? v : cfg[0]));
+}
+
+function stageArea(W, H, bannerSpace) {
+  const unit = Math.min(W, H);
+  const m = Math.round(unit * 0.04);
+  return { x: m, y: m, w: W - 2 * m, h: H - 2 * m - bannerSpace };
+}
+
+/**
+ * Where the draggable divider sits for the current layout, in canvas pixels,
+ * or null when the layout has no adjustable split.
+ */
+export function splitHandle(layout, items, W, H, opts = {}) {
+  const portrait = H > W;
+  const hasScreen = items.some((i) => i.kind === "screen");
+  if (layout === "screen" && !(hasScreen && items.length > 1)) return null;
+  if (layout === "leader" && items.length < 2) return null;
+  if (!SPLITS[layout]) return null;
+  const area = stageArea(W, H, opts.bannerSpace ?? 0);
+  const v = splitValue(layout, portrait, opts.splits);
+  const cfg = SPLITS[layout][portrait ? "p" : "l"];
+  return portrait
+    ? { axis: "y", key: splitKey(layout, W, H), area, pos: area.y + area.h * v, min: cfg[1], max: cfg[2] }
+    : { axis: "x", key: splitKey(layout, W, H), area, pos: area.x + area.w * v, min: cfg[1], max: cfg[2] };
+}
+
 /**
  * @param {string} layout
  * @param {{id:string, kind:'cam'|'screen'}[]} items  stage items in order
  * @param {number} W canvas width
  * @param {number} H canvas height
- * @param {{bannerSpace?:number}} opts
+ * @param {{bannerSpace?:number, splits?:object}} opts
  */
 export function computeLayout(layout, items, W, H, opts = {}) {
   if (!items.length) return [];
@@ -119,14 +161,15 @@ export function computeLayout(layout, items, W, H, opts = {}) {
     case "leader": {
       const [main, ...rest] = items;
       if (!rest.length) return finish([{ id: main.id, ...area }]);
+      const split = splitValue("leader", portrait, opts.splits);
       if (portrait) {
-        const mh = area.h * 0.66;
+        const mh = area.h * split - gap / 2;
         const mainR = { id: main.id, x: area.x, y: area.y, w: area.w, h: mh };
         const strip = stripRects(rest, { x: area.x, y: area.y + mh + gap, w: area.w, h: area.h - mh - gap }, 1, gap, false);
         return finish([mainR, ...strip]);
       }
-      const colW = Math.max(area.w * 0.22, 160);
-      const mainW = area.w - colW - gap;
+      const mainW = area.w * split - gap / 2;
+      const colW = area.w - mainW - gap;
       const mainR = { id: main.id, x: area.x, y: area.y, w: mainW, h: area.h };
       const strip = stripRects(rest, { x: area.x + mainW + gap, y: area.y, w: colW, h: area.h }, 16 / 9, gap, true);
       return finish([mainR, ...strip]);
@@ -153,14 +196,15 @@ export function computeLayout(layout, items, W, H, opts = {}) {
       const [screen, ...otherScreens] = screens;
       const people = [...otherScreens, ...cams];
       if (!people.length) return finish([{ id: screen.id, ...area }]);
+      const split = splitValue("screen", portrait, opts.splits);
       if (portrait) {
-        const sh = area.h * 0.55;
+        const sh = area.h * split - gap / 2;
         const sR = { id: screen.id, x: area.x, y: area.y, w: area.w, h: sh };
         const g = gridRects(people, { x: area.x, y: area.y + sh + gap, w: area.w, h: area.h - sh - gap }, 1, gap);
         return finish([sR, ...g]);
       }
-      const colW = Math.max(area.w * 0.2, 160);
-      const sw = area.w - colW - gap;
+      const sw = area.w * split - gap / 2;
+      const colW = area.w - sw - gap;
       const sR = { id: screen.id, x: area.x, y: area.y, w: sw, h: area.h };
       const strip = stripRects(people, { x: area.x + sw + gap, y: area.y, w: colW, h: area.h }, 16 / 9, gap, true);
       return finish([sR, ...strip]);

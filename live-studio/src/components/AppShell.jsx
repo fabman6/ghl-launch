@@ -12,11 +12,12 @@ const NAV = [
 
 export function Logo({ className = "" }) {
   return (
-    <div className={`flex items-center gap-2 font-bold tracking-tight ${className}`}>
-      <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-        <span className="h-3 w-3 rounded-full bg-white" />
-      </span>
-      <span className="text-lg">Live Studio</span>
+    <div className={`flex items-center ${className}`}>
+      <img
+        src="https://media.base44.com/images/public/6ae7392a088c187242bd1e07/6d92688eb_Raw-Live-Lab-Logo-White.png"
+        alt="Raw Live Lab"
+        className="h-8 w-auto"
+      />
     </div>
   );
 }

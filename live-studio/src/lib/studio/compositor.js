@@ -1,7 +1,7 @@
 // Draws the program feed onto a canvas: background, people/screens in the
 // chosen layout (with animated transitions), name tags, active-speaker ring,
 // lower-third banner, scrolling ticker, logo, overlay, scenes and video clips.
-import { computeLayout } from "./layouts";
+import { computeLayout, splitHandle } from "./layouts";
 import { canvasSize, isScreenItem } from "./state";
 import { createTicker, hashColor, initials } from "./utils";
 
@@ -234,9 +234,19 @@ export class Compositor {
     ctx.fillRect(0, 0, W, H);
   }
 
+  /** Divider the host can drag for the current layout (canvas px), or null. */
+  splitHandle() {
+    const s = this.state;
+    if (!s || (s.scene && s.scene !== "stage")) return null;
+    const items = this.stageItems();
+    const h = splitHandle(s.layout, items, this.canvas.width, this.canvas.height, { bannerSpace: this.bannerSpace ?? 0, splits: s.splits });
+    return h ? { ...h, W: this.canvas.width, H: this.canvas.height } : null;
+  }
+
   drawStage(ctx, W, H, s, brand, font, unit, bannerSpace, dt) {
     const items = this.stageItems();
-    const targets = computeLayout(s.layout, items, W, H, { bannerSpace });
+    this.bannerSpace = bannerSpace;
+    const targets = computeLayout(s.layout, items, W, H, { bannerSpace, splits: s.splits });
     const k = 1 - Math.exp(-dt / 90);
     const seen = new Set();
     for (const t of targets) {
@@ -278,7 +288,12 @@ export class Compositor {
     const v = src.video;
     const hasFrame = src.hasVideo && v && v.readyState >= 2 && v.videoWidth > 0;
     if (hasFrame) {
+      if (src.mirror && it.kind === "cam") {
+        ctx.translate(2 * x + w, 0);
+        ctx.scale(-1, 1);
+      }
       drawMedia(ctx, v, v.videoWidth, v.videoHeight, x, y, w, h, r.fit);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
     } else {
       const d = Math.min(w, h) * 0.38;
       ctx.fillStyle = hashColor(src.name);

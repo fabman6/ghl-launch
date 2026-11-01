@@ -10,7 +10,7 @@
 import { Actor } from "base44:runtime/actors";
 
 type Role = "host" | "guest";
-type Media = { mic: boolean; cam: boolean; screen: boolean };
+type Media = { mic: boolean; cam: boolean; screen: boolean; mirror: boolean };
 type Participant = {
   id: string;
   name: string;
@@ -90,7 +90,7 @@ export default class StudioRoom extends Actor<any, any> {
       }
 
       case "media": {
-        me.media = { mic: !!msg.media?.mic, cam: !!msg.media?.cam, screen: !!msg.media?.screen };
+        me.media = { mic: !!msg.media?.mic, cam: !!msg.media?.cam, screen: !!msg.media?.screen, mirror: msg.media?.mirror !== false };
         await this.rosterChanged();
         return;
       }
@@ -187,7 +187,7 @@ export default class StudioRoom extends Actor<any, any> {
       admitted: role === "host" ? true : prev?.admitted ?? false,
       joinedAt: prev?.joinedAt ?? now,
       admittedAt: prev?.admittedAt ?? (role === "host" ? now : 0),
-      media: { mic: !!msg.media?.mic, cam: !!msg.media?.cam, screen: false },
+      media: { mic: !!msg.media?.mic, cam: !!msg.media?.cam, screen: false, mirror: msg.media?.mirror !== false },
     };
     this.participants.set(conn.id, p);
 

@@ -14,12 +14,20 @@ A browser studio for live streaming and podcast recording, in the spirit of Stre
 - Layouts: Solo, Grid, Side by side, Spotlight, Picture in picture, Screen + people, Screen + corner, with animated transitions
 - 16:9 landscape and 9:16 vertical output
 - Screen sharing (with tab/system audio) for host and guests, auto-placed on stage
+- Draggable divider between the main item and the side items (Spotlight and Screen + people layouts, landscape and 9:16); double-click resets
+- Mirrored cameras (on by default, per person): raise your right hand and it appears on the right
 - Name tags with headline, active-speaker highlight
 - Banners (lower thirds) and scrolling tickers, four themes, six fonts, brand + text color
 - Logo (4 positions), background image or color, full-frame overlay PNG
 - Scenes: Starting soon (with countdown), Be right back, Thanks for watching
 - Video clips (intros, outros, ads) played full screen with audio
 - Private studio chat, host controls (mute guest, camera off, remove)
+
+**Camera effects** (run on each person's own device, so guests get them too)
+- Touch up: skin smoothing that leaves eyes, hair and edges sharp, clarity, low-light boost, plus presets
+- Colour: brightness, contrast, saturation, warmth
+- Background blur and virtual backgrounds (5 built-in looks or your own image), cut out with Google's MediaPipe selfie segmentation and refined at full resolution so edges follow hair and shoulders
+- Auto-frame toggle: gently pans and zooms to keep you centred
 
 **Recording**
 - Composite recording of the program feed (exactly what viewers see)
@@ -51,6 +59,7 @@ A browser studio for live streaming and podcast recording, in the spirit of Stre
 | Program compositor (canvas) | `src/lib/studio/compositor.js`, `layouts.js` |
 | Audio mixing + meters | `src/lib/studio/mixer.js` |
 | Recording + sinks (Drive, folder, memory) | `src/lib/studio/recorder.js`, `sinks.js` |
+| Camera effects (WebGL2 + MediaPipe) | `src/lib/studio/effects.js`, model + wasm self-hosted in `public/` |
 | Session orchestration | `src/lib/studio/session.js` |
 | UI | `src/pages/*`, `src/components/studio/*` |
 

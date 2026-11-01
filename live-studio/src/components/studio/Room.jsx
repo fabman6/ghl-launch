@@ -15,6 +15,7 @@ import {
   PanelRight,
   Radio,
   Settings as SettingsIcon,
+  Sparkles,
   Type,
   UserPlus,
   Users,
@@ -31,6 +32,7 @@ import BackstageTile from "./BackstageTile";
 import { BannersPanel, BrandPanel, ChatPanel, FilesPanel, PeoplePanel, ScenesPanel } from "./Panels";
 import { GoLiveDialog, InviteDialog, LiveOutputs, RecordDialog, SettingsDialog } from "./Dialogs";
 import { VideoView } from "./MediaBits";
+import EffectsPanel from "./EffectsPanel";
 
 function Badge({ color, label, since }) {
   const t = useElapsed(since);
@@ -233,7 +235,7 @@ export default function Room({ session, inviteLink, onLeave }) {
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex min-h-0 flex-1 items-center justify-center p-3 sm:p-5">
             <div className={s.aspect === "9:16" ? "h-full" : "w-full max-w-[min(100%,calc((100vh-330px)*16/9))]"}>
-              <StageView session={session} aspect={s.aspect} className={s.aspect === "9:16" ? "h-full" : "w-full"} />
+              <StageView session={session} snap={snap} aspect={s.aspect} className={s.aspect === "9:16" ? "h-full" : "w-full"} />
             </div>
           </div>
 
@@ -307,6 +309,17 @@ export default function Room({ session, inviteLink, onLeave }) {
               {snap.screenOn ? <MonitorX className="mr-2 h-4 w-4" /> : <MonitorUp className="mr-2 h-4 w-4" />}
               {snap.screenOn ? "Stop sharing" : "Share screen"}
             </Button>
+            <Button
+              size="lg"
+              variant="secondary"
+              disabled={!snap.hasCam}
+              onClick={() => setDialog("effects")}
+              title="Camera effects, backgrounds and framing"
+              className={snap.fx && (snap.fx.background !== "none" || snap.fx.autoFrame || snap.fx.smoothing > 0) ? "text-primary" : ""}
+            >
+              <Sparkles className="h-4 w-4" />
+              <span className="ml-2 hidden md:inline">Effects</span>
+            </Button>
             <Button size="lg" variant="secondary" className="relative lg:hidden" onClick={() => setMobilePanel(true)} title="Panels">
               <PanelRight className="h-4 w-4" />
               {(snap.unread > 0 || pendingCount > 0) && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-[hsl(var(--live))]" />}
@@ -340,6 +353,7 @@ export default function Room({ session, inviteLink, onLeave }) {
       {snap.isHost && <GoLiveDialog session={session} snap={snap} open={dialog === "live"} onOpenChange={(o) => setDialog(o ? "live" : null)} />}
       {snap.isHost && <InviteDialog link={inviteLink} open={dialog === "invite"} onOpenChange={(o) => setDialog(o ? "invite" : null)} />}
       {dialog === "settings" && <SettingsDialog session={session} snap={snap} open onOpenChange={(o) => setDialog(o ? "settings" : null)} />}
+      <EffectsPanel session={session} snap={snap} open={dialog === "effects"} onOpenChange={(o) => setDialog(o ? "effects" : null)} />
     </div>
   );
 }

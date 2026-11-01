@@ -27,7 +27,7 @@ export default function BackstageTile({ session, snap, id, kind, participant, is
       )}
       <div className="relative aspect-video bg-black">
         {showVideo ? (
-          <VideoView key={`${id}-${snap.localVersion}`} stream={stream} mirror={isLocal && kind === "cam"} contain={kind === "screen"} />
+          <VideoView key={`${id}-${snap.localVersion}`} stream={stream} mirror={kind === "cam" && (isLocal ? snap.fx?.mirror !== false : participant.media?.mirror !== false)} contain={kind === "screen"} />
         ) : (
           <div className="flex h-full items-center justify-center">
             <div
