@@ -1,0 +1,57 @@
+{
+  "name": "Studio",
+  "type": "object",
+  "title": "Studio",
+  "description": "A reusable broadcast/recording studio with its own branding, banners and guest invite link.",
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    },
+    "invite_code": {
+      "type": "string",
+      "description": "Secret code embedded in the guest invite link."
+    },
+    "settings": {
+      "type": "object",
+      "description": "Saved studio look: brand, banners, layout, aspect ratio."
+    },
+    "last_session_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "title"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
+        }
+      ]
+    },
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

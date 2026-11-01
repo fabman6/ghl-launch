@@ -1,0 +1,80 @@
+{
+  "name": "Recording",
+  "type": "object",
+  "title": "Recording",
+  "description": "A file recorded in a studio session and saved to Google Drive. Written only by the driveUpload backend function.",
+  "properties": {
+    "owner_id": {
+      "type": "string",
+      "description": "User id of the studio owner."
+    },
+    "studio_id": {
+      "type": "string"
+    },
+    "studio_title": {
+      "type": "string"
+    },
+    "session_id": {
+      "type": "string"
+    },
+    "session_title": {
+      "type": "string"
+    },
+    "participant_name": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "program",
+        "participant",
+        "screen",
+        "audio"
+      ]
+    },
+    "file_name": {
+      "type": "string"
+    },
+    "drive_file_id": {
+      "type": "string"
+    },
+    "drive_url": {
+      "type": "string"
+    },
+    "folder_url": {
+      "type": "string"
+    },
+    "mime_type": {
+      "type": "string"
+    },
+    "size_bytes": {
+      "type": "number"
+    },
+    "duration_sec": {
+      "type": "number"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "uploaded",
+        "failed"
+      ],
+      "default": "uploaded"
+    }
+  },
+  "required": [
+    "owner_id",
+    "studio_id",
+    "kind"
+  ],
+  "rls": {
+    "create": false,
+    "read": {
+      "data.owner_id": "{{user.id}}"
+    },
+    "update": false,
+    "delete": {
+      "data.owner_id": "{{user.id}}"
+    }
+  }
+}

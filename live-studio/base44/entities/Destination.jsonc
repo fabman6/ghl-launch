@@ -1,0 +1,73 @@
+{
+  "name": "Destination",
+  "type": "object",
+  "title": "Stream Destination",
+  "description": "Where a live broadcast is sent: an RTMP(S) server + key (restreamed by Cloudflare Stream) or a WHIP endpoint.",
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "youtube",
+        "facebook",
+        "twitch",
+        "linkedin",
+        "x",
+        "kick",
+        "instagram",
+        "custom_rtmp",
+        "whip"
+      ],
+      "default": "youtube"
+    },
+    "rtmp_url": {
+      "type": "string"
+    },
+    "stream_key": {
+      "type": "string"
+    },
+    "whip_url": {
+      "type": "string"
+    },
+    "whip_token": {
+      "type": "string"
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "name",
+    "platform"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
+        }
+      ]
+    },
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}
