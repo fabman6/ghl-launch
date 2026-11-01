@@ -923,12 +923,12 @@ export class StudioSession extends Emitter {
 
   // ---------- going live ----------
 
-  async goLive(destinationIds) {
+  async goLive(destinationIds, { title = "", description = "", overrides = {} } = {}) {
     if (!this.isHost || this.live.active || this.live.starting) return;
     this.live = { ...this.live, starting: true, error: null };
     this.changed();
     try {
-      const res = await invokeFn("liveControl", { action: "start", studioId: this.studioId, destinationIds });
+      const res = await invokeFn("liveControl", { action: "start", studioId: this.studioId, destinationIds, title, description, overrides });
       const data = res.data ?? {};
       if (data.error) throw new Error(data.error);
       const stream = this.programStream();
@@ -945,8 +945,15 @@ export class StudioSession extends Emitter {
           outputs.push({ id: w.id, name: w.name, ok: false, error: e.message });
         }
       }
-      if (!this.publishers.length) throw new Error(outputs.find((o) => o.error)?.error || "No destination could be reached.");
-      this.live = { active: true, starting: false, startedAt: Date.now(), outputs, liveInputId: data.liveInputId, error: null };
+      if (!this.publishers.length || !outputs.some((o) => o.ok)) {
+        for (const p of this.publishers) p.stop();
+        this.publishers = [];
+        if (data.liveInputId || data.youtubeBroadcasts?.length) {
+          invokeFn("liveControl", { action: "stop", studioId: this.studioId, liveInputId: data.liveInputId, youtubeBroadcasts: data.youtubeBroadcasts }).catch(() => {});
+        }
+        throw new Error(outputs.find((o) => o.error)?.error || "No destination could be reached.");
+      }
+      this.live = { active: true, starting: false, startedAt: Date.now(), outputs, liveInputId: data.liveInputId, youtubeBroadcasts: data.youtubeBroadcasts ?? [], error: null };
       this.updateState({ live: true, liveStartedAt: this.live.startedAt });
     } catch (e) {
       const msg = e.message;
@@ -961,11 +968,12 @@ export class StudioSession extends Emitter {
   async endLive() {
     if (!this.live.active) return;
     const id = this.live.liveInputId;
+    const youtubeBroadcasts = this.live.youtubeBroadcasts ?? [];
     await Promise.all(this.publishers.map((p) => p.stop()));
     this.publishers = [];
     this.live = { active: false, starting: false, startedAt: null, outputs: [], error: null };
     this.updateState({ live: false, liveStartedAt: null });
-    if (id) invokeFn("liveControl", { action: "stop", studioId: this.studioId, liveInputId: id }).catch(() => {});
+    if (id || youtubeBroadcasts.length) invokeFn("liveControl", { action: "stop", studioId: this.studioId, liveInputId: id, youtubeBroadcasts }).catch(() => {});
     this.changed();
   }
 }

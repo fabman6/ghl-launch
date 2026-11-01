@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FONTS, SCENES, THEMES } from "@/lib/studio/state";
 import { downloadBlob, fmtBytes, fmtDuration, uid } from "@/lib/studio/utils";
 
-const SWATCHES = ["#7c3aed", "#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6", "#ec4899", "#111827", "#ffffff"];
+const SWATCHES = ["#e5202e", "#ff6b00", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6", "#ec4899", "#111827", "#ffffff"];
 
 function Section({ title, children, right }) {
   return (

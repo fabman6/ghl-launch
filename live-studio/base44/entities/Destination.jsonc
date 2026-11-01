@@ -2,7 +2,7 @@
   "name": "Destination",
   "type": "object",
   "title": "Stream Destination",
-  "description": "Where a live broadcast is sent: an RTMP(S) server + key (restreamed by Cloudflare Stream) or a WHIP endpoint.",
+  "description": "Where a live broadcast goes. YouTube uses the connected account (a broadcast and key are created automatically each time); other platforms use an RTMP(S) server + stream key, or a WHIP endpoint.",
   "properties": {
     "name": {
       "type": "string",
@@ -24,11 +24,34 @@
       ],
       "default": "youtube"
     },
+    "connection": {
+      "type": "string",
+      "enum": [
+        "account",
+        "key"
+      ],
+      "default": "key",
+      "description": "account = created automatically through the connected platform account; key = server URL + stream key."
+    },
+    "privacy": {
+      "type": "string",
+      "enum": [
+        "public",
+        "unlisted",
+        "private"
+      ],
+      "default": "public"
+    },
     "rtmp_url": {
       "type": "string"
     },
     "stream_key": {
       "type": "string"
+    },
+    "key_each_time": {
+      "type": "boolean",
+      "default": false,
+      "description": "Platform issues a new key for every broadcast (Instagram, LinkedIn)."
     },
     "whip_url": {
       "type": "string"

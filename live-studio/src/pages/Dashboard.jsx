@@ -118,7 +118,7 @@ export default function Dashboard() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {studios.map((s) => {
-            const color = s.settings?.brand?.color || "#7c3aed";
+            const color = s.settings?.brand?.color || "#e5202e";
             return (
               <Card key={s.id} className="group overflow-hidden">
                 <Link to={`/studio/${s.id}`} className="block">

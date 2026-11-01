@@ -16,7 +16,7 @@ export const SCENES = [
 ];
 
 export const DEFAULT_BRAND = {
-  color: "#7c3aed",
+  color: "#e5202e",
   textColor: "#ffffff",
   theme: "bubble",
   font: "Inter",

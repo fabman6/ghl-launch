@@ -11,7 +11,7 @@
     --card-foreground: 240 10% 96%;
     --popover: 255 16% 10%;
     --popover-foreground: 240 10% 96%;
-    --primary: 262 83% 63%;
+    --primary: 356 79% 51%;
     --primary-foreground: 0 0% 100%;
     --secondary: 255 12% 15%;
     --secondary-foreground: 240 10% 96%;
@@ -23,9 +23,9 @@
     --destructive-foreground: 0 0% 100%;
     --border: 255 12% 18%;
     --input: 255 12% 20%;
-    --ring: 262 83% 63%;
-    --live: 350 100% 61%;
-    --chart-1: 262 83% 63%;
+    --ring: 356 79% 51%;
+    --live: 356 90% 55%;
+    --chart-1: 356 79% 51%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 200 80% 55%;
@@ -37,12 +37,12 @@
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
     --sidebar-background: 255 16% 8%;
     --sidebar-foreground: 240 10% 90%;
-    --sidebar-primary: 262 83% 63%;
+    --sidebar-primary: 356 79% 51%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 255 12% 15%;
     --sidebar-accent-foreground: 240 10% 96%;
     --sidebar-border: 255 12% 18%;
-    --sidebar-ring: 262 83% 63%;
+    --sidebar-ring: 356 79% 51%;
   }
 }
 

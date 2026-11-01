@@ -30,9 +30,12 @@ A browser studio for live streaming and podcast recording, in the spirit of Stre
 - Recordings library grouped by session with Drive links
 
 **Live streaming**
-- Multistream to YouTube, Facebook, Twitch, LinkedIn, X, Kick, Instagram or any RTMP(S) server via Cloudflare Stream (browser → WebRTC/WHIP → Cloudflare → RTMP)
-- Direct WHIP destinations (no restream service needed)
-- Live and recording timers
+- YouTube: one click. Connect your channel once and every Go live creates the YouTube broadcast and stream key for you, then ends it when you stop
+- Facebook: guided one-time setup with a persistent stream key from Live Producer
+- Instagram and LinkedIn: these platforms issue a new key for every live, so you paste it in the Go live window (with a button that opens the right page)
+- Twitch, Kick, X, any RTMP(S) server, or WHIP endpoints
+- Everything is multistreamed at once via Cloudflare Stream (browser → WebRTC/WHIP → Cloudflare → each platform)
+- Live and recording timers, watch-page links once live
 
 ## Architecture
 
@@ -55,8 +58,8 @@ Participants connect peer to peer (full mesh, good for a host plus up to about 5
 
 ## Setup
 
-1. **Google Drive**: Base44 editor → Integrations → Google Drive → Connect (scope `drive.file`). All recordings, including guests', go to this Drive.
-2. **Live streaming to RTMP**: enable Cloudflare Stream, create an API token with *Stream: Edit*, then add secrets `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_STREAM_API_TOKEN`. Add stream keys on the Destinations page.
+1. **Google Drive**: Base44 editor → Integrations → Google Drive → Connect. All recordings, including guests', go to this Drive.
+2. **Live streaming to RTMP**: enable Cloudflare Stream, create an API token with *Stream: Edit*, then add secrets `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_STREAM_API_TOKEN`. Then connect platforms on the Destinations page. YouTube also needs live streaming enabled on the channel once (youtube.com/features).
 3. **Optional TURN relay** for strict firewalls: `CLOUDFLARE_TURN_KEY_ID` + `CLOUDFLARE_TURN_KEY_API_TOKEN`, or `TURN_URLS`, `TURN_USERNAME`, `TURN_CREDENTIAL`.
 
 Best experience: Chrome or Edge on desktop, headphones for everyone.

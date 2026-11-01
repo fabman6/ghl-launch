@@ -49,7 +49,7 @@ function fitText(ctx, text, maxW) {
 
 function withAlpha(hex, a) {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
-  if (!m) return `rgba(124,58,237,${a})`;
+  if (!m) return `rgba(229,32,46,${a})`;
   const n = parseInt(m[1], 16);
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 }
@@ -296,7 +296,7 @@ export class Compositor {
 
     if (it.kind === "cam" && s.speakerHighlight && src.level > 0.04 && src.micOn) {
       ctx.save();
-      ctx.strokeStyle = brand.color || "#7c3aed";
+      ctx.strokeStyle = brand.color || "#e5202e";
       ctx.lineWidth = Math.max(3, unit * 0.005);
       roundRectPath(ctx, x + ctx.lineWidth / 2, y + ctx.lineWidth / 2, w - ctx.lineWidth, h - ctx.lineWidth, r.r);
       ctx.stroke();
@@ -323,7 +323,7 @@ export class Compositor {
   drawLabel(ctx, { x, bottom, maxW, title, sub, brand, font, size, alpha = 1 }) {
     if (!title) return 0;
     const theme = brand.theme || "bubble";
-    const color = brand.color || "#7c3aed";
+    const color = brand.color || "#e5202e";
     const textColor = brand.textColor || "#ffffff";
     const tSize = Math.round(size);
     const sSize = Math.round(size * 0.68);
@@ -435,7 +435,7 @@ export class Compositor {
   drawTicker(ctx, W, H, ticker, brand, font, unit, h, now) {
     const y = H - h;
     ctx.save();
-    ctx.fillStyle = brand.color || "#7c3aed";
+    ctx.fillStyle = brand.color || "#e5202e";
     ctx.fillRect(0, y, W, h);
     ctx.beginPath();
     ctx.rect(0, y, W, h);
@@ -487,7 +487,7 @@ export class Compositor {
       const left = Math.max(0, Math.round((s.countdownTo - Date.now()) / 1000));
       const mm = String(Math.floor(left / 60)).padStart(2, "0");
       const ss = String(left % 60).padStart(2, "0");
-      ctx.fillStyle = brand.color || "#7c3aed";
+      ctx.fillStyle = brand.color || "#e5202e";
       const bw = unit * 0.24;
       const bh = unit * 0.09;
       roundRectPath(ctx, W / 2 - bw / 2, H / 2 + unit * 0.11, bw, bh, bh / 2);

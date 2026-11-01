@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, Copy, FolderDown, Loader2, Radio } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Copy, ExternalLink, FolderDown, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,6 +15,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { invokeFn } from "@/lib/studio/api";
 import { listDevices } from "@/lib/studio/devices";
 import { DevicePicker } from "./Lobby";
+import { PLATFORMS, PlatformIcon } from "./platforms";
+import { useLiveStatus } from "@/pages/Destinations";
 
 function Option({ title, desc, checked, onChange, disabled }) {
   return (
@@ -112,7 +114,7 @@ export function RecordDialog({ session, snap, open, onOpenChange }) {
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={start} disabled={busy || (!program && !isolated)} className="bg-[hsl(var(--live))] hover:bg-[hsl(var(--live))]/90">
+          <Button onClick={start} disabled={busy || (!program && !isolated)} >
             {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Start recording
           </Button>
         </DialogFooter>
@@ -123,56 +125,108 @@ export function RecordDialog({ session, snap, open, onOpenChange }) {
 
 export function GoLiveDialog({ session, snap, open, onOpenChange }) {
   const dests = useQuery({ queryKey: ["destinations"], queryFn: () => base44.entities.Destination.list(), enabled: open });
-  const status = useQuery({ queryKey: ["live-status"], queryFn: async () => (await invokeFn("liveControl", { action: "status" })).data, enabled: open });
+  const status = useLiveStatus(open);
   const [selected, setSelected] = useState(null);
+  const [title, setTitle] = useState(session.studioTitle);
+  const [description, setDescription] = useState("");
+  const [keys, setKeys] = useState({});
   const list = dests.data ?? [];
-  const chosen = selected ?? list.filter((d) => d.enabled).map((d) => d.id);
-  const needsRestream = list.some((d) => chosen.includes(d.id) && d.platform !== "whip");
+  const yt = status.data?.accounts?.youtube;
+  const unusable = (d) => d.platform === "youtube" && d.connection === "account" && yt && yt.liveEnabled === false;
+  const chosen = (selected ?? list.filter((d) => d.enabled).map((d) => d.id)).filter((id) => {
+    const d = list.find((x) => x.id === id);
+    return d && !unusable(d);
+  });
+  const chosenDests = list.filter((d) => chosen.includes(d.id));
+  const needsRestream = chosenDests.some((d) => d.platform !== "whip");
   const blocked = needsRestream && status.data && !status.data.restreamConfigured;
+  const missingKey = chosenDests.some((d) => d.key_each_time && (!keys[d.id]?.rtmp_url?.trim() || !keys[d.id]?.stream_key?.trim()));
+  const setKey = (id, field, value) => setKeys((k) => ({ ...k, [id]: { ...k[id], [field]: value } }));
+  const toggle = (id, v) => setSelected(v ? [...chosen, id] : chosen.filter((x) => x !== id));
 
   const go = async () => {
-    await session.goLive(chosen);
+    await session.goLive(chosen, { title: title.trim() || session.studioTitle, description: description.trim(), overrides: keys });
     if (session.live.active) onOpenChange(false);
+  };
+
+  const subtitle = (d) => {
+    if (unusable(d)) return "Live streaming isn't enabled on this channel yet";
+    if (d.platform === "youtube" && d.connection === "account") return `New broadcast on your channel · ${d.privacy || "public"}`;
+    if (d.key_each_time) return "Paste this live's stream URL and key";
+    return d.platform === "whip" ? "WHIP" : "Saved stream key";
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Go live</DialogTitle>
-          <DialogDescription>Pick where to broadcast. Everything on stage is sent to every destination at once.</DialogDescription>
+          <DialogDescription>Everything on stage goes to every destination you pick.</DialogDescription>
         </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>Title</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Description (optional)</Label>
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Shown on YouTube" />
+          </div>
+        </div>
         {dests.isLoading ? (
           <Loader2 className="mx-auto h-6 w-6 animate-spin" />
         ) : list.length === 0 ? (
           <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
             No destinations yet.{" "}
             <Link className="text-primary underline" to="/destinations" target="_blank">
-              Add YouTube, Facebook, Twitch…
+              Connect YouTube, Facebook, Instagram or LinkedIn
             </Link>
           </div>
         ) : (
           <div className="space-y-2">
-            {list.map((d) => (
-              <label key={d.id} className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 hover:bg-accent/50">
-                <Checkbox
-                  checked={chosen.includes(d.id)}
-                  onCheckedChange={(v) => setSelected(v ? [...chosen, d.id] : chosen.filter((x) => x !== d.id))}
-                />
-                <Radio className="h-4 w-4 text-primary" />
-                <span className="flex-1 text-sm font-medium">{d.name}</span>
-                <span className="text-xs text-muted-foreground">{d.platform === "whip" ? "WHIP" : "RTMP"}</span>
-              </label>
-            ))}
-            <Link className="block text-right text-xs text-primary underline" to="/destinations" target="_blank">
+            <Label>Destinations</Label>
+            {list.map((d) => {
+              const on = chosen.includes(d.id);
+              const p = PLATFORMS[d.platform];
+              return (
+                <div key={d.id} className={`rounded-lg border transition ${on ? "border-primary/60 bg-primary/5" : ""} ${unusable(d) ? "opacity-60" : ""}`}>
+                  <label className="flex cursor-pointer items-center gap-3 p-3">
+                    <PlatformIcon platform={d.platform} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium">{d.name}</div>
+                      <div className="truncate text-xs text-muted-foreground">{subtitle(d)}</div>
+                    </div>
+                    <Switch checked={on} disabled={unusable(d)} onCheckedChange={(v) => toggle(d.id, v)} />
+                  </label>
+                  {on && d.key_each_time && (
+                    <div className="space-y-2 border-t px-3 pb-3 pt-2">
+                      <Input placeholder="Stream URL" value={keys[d.id]?.rtmp_url ?? ""} onChange={(e) => setKey(d.id, "rtmp_url", e.target.value)} />
+                      <Input type="password" placeholder="Stream key" value={keys[d.id]?.stream_key ?? ""} onChange={(e) => setKey(d.id, "stream_key", e.target.value)} />
+                      {p?.keyUrl && (
+                        <a href={p.keyUrl} target="_blank" rel="noreferrer" className="inline-flex items-center text-xs text-primary hover:underline">
+                          Get today&apos;s key from {p.label} <ExternalLink className="ml-1 h-3 w-3" />
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            <Link className="block text-right text-xs text-muted-foreground hover:text-foreground" to="/destinations" target="_blank">
               Manage destinations
             </Link>
           </div>
         )}
         {blocked && (
-          <div className="flex gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">
+          <div className="flex gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            RTMP destinations need Cloudflare Stream for restreaming. Add the Cloudflare secrets (see Settings) or choose a WHIP destination.
+            <span>
+              Live streaming needs its one-time setup first.{" "}
+              <Link to="/destinations" target="_blank" className="underline">
+                Open Destinations
+              </Link>{" "}
+              to finish it.
+            </span>
           </div>
         )}
         {snap.live.error && <div className="text-sm text-destructive">{snap.live.error}</div>}
@@ -180,7 +234,7 @@ export function GoLiveDialog({ session, snap, open, onOpenChange }) {
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={go} disabled={!chosen.length || blocked || snap.live.starting} className="bg-[hsl(var(--live))] hover:bg-[hsl(var(--live))]/90">
+          <Button onClick={go} disabled={!chosen.length || blocked || missingKey || snap.live.starting}>
             {snap.live.starting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Go live
           </Button>
         </DialogFooter>
@@ -192,12 +246,22 @@ export function GoLiveDialog({ session, snap, open, onOpenChange }) {
 export function LiveOutputs({ outputs }) {
   if (!outputs?.length) return null;
   return (
-    <div className="space-y-1 text-xs">
+    <div className="space-y-2 text-sm">
       {outputs.map((o) => (
-        <div key={o.id} className="flex items-center gap-1.5">
-          {o.ok ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> : <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />}
-          <span>{o.name}</span>
-          {o.error && <span className="text-muted-foreground">({o.error})</span>}
+        <div key={o.id} className="flex items-start gap-2">
+          <PlatformIcon platform={o.platform || "custom_rtmp"} size="sm" />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 font-medium">
+              {o.ok ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> : <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />}
+              <span className="truncate">{o.name}</span>
+            </div>
+            {o.error && <div className="text-xs text-muted-foreground">{o.error}</div>}
+            {o.watchUrl && (
+              <a href={o.watchUrl} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline">
+                Open watch page
+              </a>
+            )}
+          </div>
         </div>
       ))}
     </div>

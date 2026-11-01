@@ -14,7 +14,7 @@ export function Logo({ className = "" }) {
   return (
     <div className={`flex items-center gap-2 font-bold tracking-tight ${className}`}>
       <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-        <span className="h-3 w-3 rounded-full bg-[hsl(var(--live))]" />
+        <span className="h-3 w-3 rounded-full bg-white" />
       </span>
       <span className="text-lg">Live Studio</span>
     </div>

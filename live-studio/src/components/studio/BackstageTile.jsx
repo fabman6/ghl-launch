@@ -20,6 +20,11 @@ export default function BackstageTile({ session, snap, id, kind, participant, is
     <div
       className={`group relative w-44 shrink-0 overflow-hidden rounded-lg border bg-card transition ${onStage ? "border-primary ring-2 ring-primary/40" : ""}`}
     >
+      {onStage && (
+        <span className="absolute right-1.5 top-1.5 z-10 rounded bg-primary px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground">
+          On stage
+        </span>
+      )}
       <div className="relative aspect-video bg-black">
         {showVideo ? (
           <VideoView key={`${id}-${snap.localVersion}`} stream={stream} mirror={isLocal && kind === "cam"} contain={kind === "screen"} />
@@ -40,7 +45,7 @@ export default function BackstageTile({ session, snap, id, kind, participant, is
           </div>
         )}
         {isHost && (
-          <div className="absolute inset-x-0 bottom-0 flex justify-center p-1.5 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
+          <div className={`absolute inset-x-0 bottom-0 flex justify-center p-1.5 transition ${onStage ? "opacity-0 group-hover:opacity-100" : "opacity-100"}`}>
             <Button
               size="sm"
               variant={onStage ? "secondary" : "default"}
