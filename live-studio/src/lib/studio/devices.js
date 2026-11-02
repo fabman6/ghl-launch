@@ -42,7 +42,7 @@ export async function getMicrophone({ deviceId, echoCancellation = true, noiseSu
 
 export async function getScreen() {
   return navigator.mediaDevices.getDisplayMedia({
-    video: { frameRate: { ideal: 30 }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+    video: { frameRate: { ideal: 30, max: 60 }, width: { ideal: 1920 }, height: { ideal: 1080 } },
     audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
     selfBrowserSurface: "exclude",
     systemAudio: "include",

@@ -533,17 +533,27 @@ export class StudioSession extends Emitter {
     const valid = (id) => (isScreenItem(id) ? byId.get(id.slice(7))?.media?.screen : byId.has(id));
     let stage = s.stage.filter(valid);
     let layout = s.layout;
+    const freshScreens = [];
     // Put fresh screen shares on stage automatically, like a production switcher would.
     for (const p of byId.values()) {
       const sid = `screen:${p.id}`;
       if (p.media?.screen && !this.knownScreens?.has(sid)) {
+        freshScreens.push(sid);
         if (!stage.includes(sid)) stage = [sid, ...stage];
         if (!layout.startsWith("screen")) layout = "screen";
       }
     }
     this.knownScreens = new Set([...byId.values()].filter((p) => p.media?.screen).map((p) => `screen:${p.id}`));
-    if (stage.length !== s.stage.length || stage.some((id, i) => id !== s.stage[i]) || layout !== s.layout) {
-      this.updateState({ stage, layout });
+    const zoomed = freshScreens.filter((id) => s.screenView?.[id]);
+    if (stage.length !== s.stage.length || stage.some((id, i) => id !== s.stage[i]) || layout !== s.layout || zoomed.length) {
+      const patch = { stage, layout };
+      if (zoomed.length) {
+        // A new share starts un-zoomed.
+        const screenView = { ...s.screenView };
+        for (const id of zoomed) delete screenView[id];
+        patch.screenView = screenView;
+      }
+      this.updateState(patch);
     }
   }
 
@@ -767,8 +777,8 @@ export class StudioSession extends Emitter {
     if (this.screenStream) return;
     const stream = await getScreen();
     const v = stream.getVideoTracks()[0];
-    if (v && "contentHint" in v) v.contentHint = "detail";
     this.screenStream = stream;
+    this.applyScreenMode();
     v?.addEventListener("ended", () => this.stopScreen());
     for (const p of this.peers.values()) {
       p.setTrack(SLOTS.screen, v ?? null);
@@ -778,6 +788,37 @@ export class StudioSession extends Emitter {
     this.sendMedia(); // the host's stage picks up the new share from the roster update
     if (this.studioState.recording && this.studioState.recSession?.isolated) this.startScreenRecorder(this.studioState.recSession);
     this.changed();
+  }
+
+  /**
+   * "smooth" keeps the frame rate up so zooming, scrolling and video on the
+   * shared screen stay fluid; "text" favours crisp static text over motion.
+   */
+  get screenMode() {
+    try {
+      return localStorage.getItem("live-studio-screen-mode") === "text" ? "text" : "smooth";
+    } catch {
+      return "smooth";
+    }
+  }
+
+  setScreenMode(mode) {
+    try {
+      localStorage.setItem("live-studio-screen-mode", mode === "text" ? "text" : "smooth");
+    } catch {
+      /* ignore */
+    }
+    this.applyScreenMode();
+    this.changed();
+  }
+
+  applyScreenMode() {
+    const v = this.screenStream?.getVideoTracks()[0];
+    if (!v) return;
+    const text = this.screenMode === "text";
+    if ("contentHint" in v) v.contentHint = text ? "detail" : "motion";
+    v.applyConstraints?.({ frameRate: { ideal: text ? 15 : 30, max: 60 } }).catch(() => {});
+    for (const p of this.peers.values()) p.setScreenMode?.(text);
   }
 
   stopScreen() {

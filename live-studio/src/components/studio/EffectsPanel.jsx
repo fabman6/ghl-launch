@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Ban, Droplets, Gauge, ImagePlus, Loader2, RotateCcw, ScanFace, Sparkles, X } from "lucide-react";
+import { Ban, Cloud, Droplets, Gauge, ImagePlus, Loader2, RotateCcw, ScanFace, Sparkles, X } from "lucide-react";
+import { useAuth } from "@/lib/AuthContext";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -8,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BG_PRESETS, DEFAULT_FX, FX_PRESETS, presetBackground } from "@/lib/studio/effects";
-import { deleteBackground, listBackgrounds, saveBackground, urlFor } from "@/lib/studio/bgstore";
+import { addBackground, loadGallery, removeBackground } from "@/lib/studio/bgstore";
 import { VideoView } from "./MediaBits";
 
 function Range({ label, value, onChange, min = 0, max = 1, hint }) {
@@ -40,24 +41,38 @@ export default function EffectsPanel({ session, snap, open, onOpenChange }) {
   const fileRef = useRef(null);
   const brand = snap.state.brand?.color;
   const thumbs = useMemo(() => (open ? Object.fromEntries(BG_PRESETS.map((p) => [p.id, thumb(p.id, brand)])) : {}), [open, brand]);
+  const { isAuthenticated } = useAuth();
   const [saved, setSaved] = useState([]);
   const [uploading, setUploading] = useState(false);
-  const refreshSaved = () => listBackgrounds().then(setSaved);
+  const [syncing, setSyncing] = useState(false);
+  const refreshSaved = async () => {
+    setSyncing(true);
+    try {
+      const { items, renamed } = await loadGallery({ signedIn: isAuthenticated });
+      setSaved(items);
+      // A browser-only background just moved to the account: keep it selected.
+      const cur = session.fx?.bgImage;
+      if (cur && renamed[cur]) update({ bgImage: renamed[cur] });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   useEffect(() => {
     if (open) {
       setFx(snap.fx ?? DEFAULT_FX);
       refreshSaved();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [open]);
 
   const onUpload = async (file) => {
     setUploading(true);
     try {
-      const item = await saveBackground(file);
+      const key = await addBackground(file, { signedIn: isAuthenticated });
       await refreshSaved();
-      update({ background: "image", bgImage: `stored:${item.id}` });
+      update({ background: "image", bgImage: key });
+      if (isAuthenticated && !key.startsWith("account:")) toast.warning("Saved in this browser only. It will move to your account next time.");
     } catch (e) {
       toast.error(e.message || "Could not save that image");
     } finally {
@@ -65,9 +80,10 @@ export default function EffectsPanel({ session, snap, open, onOpenChange }) {
     }
   };
 
-  const onDelete = async (id) => {
-    await deleteBackground(id);
-    if (fx.bgImage === `stored:${id}`) update({ background: "none", bgImage: null });
+  const onDelete = async (key) => {
+    if (!confirm(key.startsWith("account:") ? "Remove this background from your account?" : "Remove this background?")) return;
+    await removeBackground(key);
+    if (fx.bgImage === key) update({ background: "none", bgImage: null });
     refreshSaved();
   };
 
@@ -170,16 +186,21 @@ export default function EffectsPanel({ session, snap, open, onOpenChange }) {
                   {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />} Upload image
                 </button>
                 {saved.map((b) => (
-                  <div key={b.id} className="group relative">
+                  <div key={b.key} className="group relative">
                     <button
-                      onClick={() => update({ background: "image", bgImage: `stored:${b.id}` })}
-                      className={`relative block aspect-video w-full overflow-hidden rounded-lg border ${bgActive(`stored:${b.id}`) ? "border-primary ring-2 ring-primary/40" : ""}`}
-                      title={b.name}
+                      onClick={() => update({ background: "image", bgImage: b.key })}
+                      className={`relative block aspect-video w-full overflow-hidden rounded-lg border ${bgActive(b.key) ? "border-primary ring-2 ring-primary/40" : ""}`}
+                      title={b.inAccount ? `${b.name} (saved to your account)` : `${b.name} (this browser only)`}
                     >
-                      <img src={urlFor(b)} alt="" className="h-full w-full object-cover" />
+                      <img src={b.thumb} alt="" crossOrigin="anonymous" className="h-full w-full object-cover" />
+                      {b.inAccount && (
+                        <span className="absolute bottom-1 left-1 flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-white">
+                          <Cloud className="h-2.5 w-2.5" />
+                        </span>
+                      )}
                     </button>
                     <button
-                      onClick={() => onDelete(b.id)}
+                      onClick={() => onDelete(b.key)}
                       className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-white opacity-0 transition group-hover:opacity-100"
                       title="Remove from saved backgrounds"
                     >
@@ -211,7 +232,12 @@ export default function EffectsPanel({ session, snap, open, onOpenChange }) {
               />
               {fx.background === "blur" && <Range label="Blur strength" value={fx.blur ?? 0.6} onChange={(v) => update({ blur: v })} />}
               <p className="text-xs text-muted-foreground">
-                Backgrounds are cut out on your device with edge refinement around hair and shoulders. Uploaded images are saved in this browser for next time and never leave your computer. Even, front-facing light gives the cleanest edges.
+                {syncing && <span className="mr-1 inline-flex items-center"><Loader2 className="mr-1 h-3 w-3 animate-spin" />Syncing your backgrounds…</span>}
+                Backgrounds are cut out on your device with edge refinement around hair and shoulders.{" "}
+                {isAuthenticated
+                  ? "Your uploads are saved to your account (cloud icon) and work on any computer you sign in on."
+                  : "Your uploads are saved in this browser for next time."}{" "}
+                Even, front-facing light gives the cleanest edges.
               </p>
             </TabsContent>
 

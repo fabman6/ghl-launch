@@ -14,6 +14,8 @@ A browser studio for live streaming and podcast recording, in the spirit of Stre
 - Layouts: Solo, Grid, Side by side, Spotlight, Picture in picture, Screen + people, Screen + corner, with animated transitions
 - 16:9 landscape and 9:16 vertical output
 - Screen sharing (with tab/system audio) for host and guests, auto-placed on stage
+- Live screen zoom: the host scrolls or pinches over a shared screen to zoom toward the cursor, drags to pan, double-clicks to reset (or uses the +/- toolbar); the zoom is part of the program feed, so the stream and recordings see it too
+- Screen share mode in Settings: Smooth motion (keeps the frame rate up for zooming, scrolling and video) or Sharp text (slides and documents)
 - Draggable divider between the main item and the side items (Spotlight and Screen + people layouts, landscape and 9:16); double-click resets
 - Mirrored cameras (on by default, per person): raise your right hand and it appears on the right
 - Name tags with headline, active-speaker highlight
@@ -26,7 +28,7 @@ A browser studio for live streaming and podcast recording, in the spirit of Stre
 **Camera effects** (run on each person's own device, so guests get them too)
 - Touch up: skin smoothing that leaves eyes, hair and edges sharp, clarity, low-light boost, plus presets
 - Colour: brightness, contrast, saturation, warmth
-- Background blur and virtual backgrounds (5 built-in looks or your own images, saved in the browser between sessions), cut out with Google's MediaPipe selfie segmentation and refined at full resolution so edges follow hair and shoulders
+- Background blur and virtual backgrounds (5 built-in looks or your own images; signed-in users get uploads saved to their account so they follow them to any computer, guests keep them in the browser), cut out with Google's MediaPipe selfie segmentation and refined at full resolution so edges follow hair and shoulders
 - Auto-frame toggle: gently pans and zooms to keep you centred
 - Lighter mode (720p) toggle for slower computers; settings are remembered
 
@@ -55,7 +57,7 @@ A browser studio for live streaming and podcast recording, in the spirit of Stre
 | Google Drive folders + resumable upload sessions | `base44/functions/driveUpload` (Google Drive connector) |
 | Go live / restream outputs | `base44/functions/liveControl` (Cloudflare Stream API) |
 | ICE / TURN servers | `base44/functions/iceServers` |
-| Data | `base44/entities/Studio`, `Destination`, `Recording` |
+| Data | `base44/entities/Studio`, `Destination`, `Recording`, `Background` |
 | WebRTC mesh | `src/lib/studio/peer.js` |
 | Program compositor (canvas) | `src/lib/studio/compositor.js`, `layouts.js` |
 | Audio mixing + meters | `src/lib/studio/mixer.js` |

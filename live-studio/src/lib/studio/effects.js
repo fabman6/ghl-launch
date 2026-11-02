@@ -10,7 +10,7 @@
 //                   -> clarity -> colour -> mask refined against the
 //                   full-res image (joint bilateral) -> light-wrap composite
 import { createTicker } from "./utils";
-import { backgroundUrl } from "./bgstore";
+import { resolveBackground } from "./bgstore";
 
 export const DEFAULT_FX = {
   smoothing: 0,
@@ -22,7 +22,7 @@ export const DEFAULT_FX = {
   warmth: 0,
   background: "none", // none | blur | image
   blur: 0.6,
-  bgImage: null, // "preset:<id>", "stored:<id>" (saved upload) or an image URL
+  bgImage: null, // "preset:<id>", "account:<id>" / "stored:<id>" (saved uploads) or an image URL
   autoFrame: false, // keep the subject centred (digital pan/zoom)
   mirror: true,
   quality: "1080p", // "720p" = lighter processing for slower computers
@@ -492,7 +492,7 @@ export class CameraFX {
     if (typeof src === "string" && src.startsWith("preset:")) {
       img = presetBackground(src.slice(7), this.brandColor);
     } else {
-      const url = typeof src === "string" && src.startsWith("stored:") ? await backgroundUrl(src.slice(7)) : src;
+      const url = typeof src === "string" && /^(stored|account):/.test(src) ? await resolveBackground(src) : src;
       if (!url) return;
       img = await new Promise((resolve, reject) => {
         const i = new Image();

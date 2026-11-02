@@ -1,0 +1,49 @@
+{
+  "name": "Background",
+  "type": "object",
+  "title": "Virtual Background",
+  "description": "A virtual background image saved to a user's account so it follows them to any computer.",
+  "properties": {
+    "name": {
+      "type": "string",
+      "maxLength": 200
+    },
+    "file_url": {
+      "type": "string"
+    },
+    "width": {
+      "type": "number"
+    },
+    "height": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "file_url"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "user"
+          }
+        }
+      ]
+    },
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

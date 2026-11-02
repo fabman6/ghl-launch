@@ -5,7 +5,16 @@ import { Emitter } from "./utils";
 
 export const SLOTS = { mic: 0, cam: 1, screen: 2, screenAudio: 3 };
 const KINDS = ["audio", "video", "video", "audio"];
-const BITRATES = { 1: 1_800_000, 2: 2_500_000 };
+// Screen shares get the most headroom so zooms and scrolling stay sharp.
+const BITRATES = { 1: 1_800_000, 2: 4_000_000 };
+
+function screenIsText() {
+  try {
+    return localStorage.getItem("live-studio-screen-mode") === "text";
+  } catch {
+    return false;
+  }
+}
 
 export class PeerLink extends Emitter {
   constructor({ remoteId, initiator, iceServers, sendSignal, getTrack }) {
@@ -89,15 +98,28 @@ export class PeerLink extends Emitter {
     const t = this.pc.getTransceivers()[slot];
     if (!t) return;
     if (t.sender.track !== track) await t.sender.replaceTrack(track ?? null).catch(() => {});
-    if (track && BITRATES[slot]) this.tuneSender(t.sender, BITRATES[slot]);
+    if (track && BITRATES[slot]) this.tuneSender(t.sender, BITRATES[slot], slot === SLOTS.screen);
   }
 
-  async tuneSender(sender, maxBitrate) {
+  /** Re-tune the screen sender after the host flips Smooth motion / Sharp text. */
+  setScreenMode() {
+    const t = this.pc.getTransceivers()[SLOTS.screen];
+    if (t?.sender.track) this.tuneSender(t.sender, BITRATES[SLOTS.screen], true);
+  }
+
+  async tuneSender(sender, maxBitrate, isScreen = false) {
     try {
       const p = sender.getParameters();
       if (!p.encodings?.length) p.encodings = [{}];
       p.encodings[0].maxBitrate = maxBitrate;
       p.encodings[0].maxFramerate = 30;
+      if (isScreen) {
+        // "balanced" lets the encoder trade a little resolution to keep the
+        // frame rate up, so live zooms and scrolling don't stutter.
+        const text = screenIsText();
+        p.degradationPreference = text ? "maintain-resolution" : "balanced";
+        p.encodings[0].maxFramerate = text ? 15 : 30;
+      }
       await sender.setParameters(p);
     } catch {
       /* not negotiated yet */
@@ -119,7 +141,7 @@ export class PeerLink extends Emitter {
       const txs = this.pc.getTransceivers();
       Object.entries(BITRATES).forEach(([slot, br]) => {
         const t = txs[Number(slot)];
-        if (t?.sender.track) this.tuneSender(t.sender, br);
+        if (t?.sender.track) this.tuneSender(t.sender, br, Number(slot) === SLOTS.screen);
       });
     }
     if (st === "failed" && this.initiator && !this.closed) {

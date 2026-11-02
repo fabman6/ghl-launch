@@ -32,6 +32,7 @@ export function defaultStudioState(saved = {}) {
     layout: saved.layout ?? "grid",
     aspect: saved.aspect ?? "16:9",
     splits: saved.splits ?? {},
+    screenView: {},
     stage: [],
     showNames: saved.showNames ?? true,
     speakerHighlight: saved.speakerHighlight ?? true,

@@ -302,6 +302,7 @@ export function SettingsDialog({ session, snap, open, onOpenChange }) {
   const [name, setName] = useState(session.name);
   const [headline, setHeadline] = useState(session.headline);
   const [quality, setQuality] = useState(session.prefs.quality || "1080p");
+  const [screenMode, setScreenMode] = useState(session.screenMode);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (open) listDevices().then(setDevices).catch(() => {});
@@ -364,6 +365,18 @@ export function SettingsDialog({ session, snap, open, onOpenChange }) {
             </div>
             <DevicePicker label="Microphone" devices={devices.mics} value={micId} onChange={setMicId} />
             {devices.speakers.length > 0 && <DevicePicker label="Speakers" devices={devices.speakers} value={speakerId} onChange={setSpeakerId} />}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Screen share</Label>
+              <Select value={screenMode} onValueChange={(v) => { setScreenMode(v); session.setScreenMode(v); }}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="smooth">Smooth motion (zooming, scrolling, video)</SelectItem>
+                  <SelectItem value="text">Sharp text (slides, documents)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <DialogFooter>
               <Button onClick={applyDevices} disabled={busy || snap.recordingLocal}>
                 {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Apply

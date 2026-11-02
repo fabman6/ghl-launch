@@ -16,23 +16,44 @@ function roundRectPath(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-function drawMedia(ctx, el, sw, sh, x, y, w, h, fit) {
-  if (!sw || !sh) return;
-  const sA = sw / sh;
+/** Draw the source region (rx, ry, rw, rh) of `el` into the box, contain or cover. */
+function drawRegion(ctx, el, rx, ry, rw, rh, x, y, w, h, fit) {
+  if (!rw || !rh) return;
+  const sA = rw / rh;
   const dA = w / h;
   if (fit === "contain") {
     let dw = w;
     let dh = h;
     if (sA > dA) dh = w / sA;
     else dw = h * sA;
-    ctx.drawImage(el, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+    ctx.drawImage(el, rx, ry, rw, rh, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
     return;
   }
-  let cw = sw;
-  let ch = sh;
-  if (sA > dA) cw = sh * dA;
-  else ch = sw / dA;
-  ctx.drawImage(el, (sw - cw) / 2, (sh - ch) / 2, cw, ch, x, y, w, h);
+  let cw = rw;
+  let ch = rh;
+  if (sA > dA) cw = rh * dA;
+  else ch = rw / dA;
+  ctx.drawImage(el, rx + (rw - cw) / 2, ry + (rh - ch) / 2, cw, ch, x, y, w, h);
+}
+
+function drawMedia(ctx, el, sw, sh, x, y, w, h, fit) {
+  drawRegion(ctx, el, 0, 0, sw, sh, x, y, w, h, fit);
+}
+
+/** Where a contain-fitted source of aspect `aspect` lands inside a box. */
+function containRect(aspect, x, y, w, h) {
+  let dw = w;
+  let dh = h;
+  if (aspect > w / h) dh = w / aspect;
+  else dw = h * aspect;
+  return { x: x + (w - dw) / 2, y: y + (h - dh) / 2, w: dw, h: dh };
+}
+
+/** Clamp a zoom view {z, x, y} (centre in 0..1 of the source) so it stays inside the frame. */
+export function clampView(v) {
+  const z = Math.min(5, Math.max(1, v?.z ?? 1));
+  const half = 0.5 / z;
+  return { z, x: Math.min(1 - half, Math.max(half, v?.x ?? 0.5)), y: Math.min(1 - half, Math.max(half, v?.y ?? 0.5)) };
 }
 
 function fitText(ctx, text, maxW) {
@@ -70,6 +91,7 @@ export class Compositor {
     this.clipVideo = null;
     this.clipUrl = "";
     this.onClipEnded = null;
+    this.zoomAnim = new Map(); // screen item id -> eased {z, x, y}
     this.setSize(1920, 1080);
   }
 
@@ -234,6 +256,23 @@ export class Compositor {
     ctx.fillRect(0, 0, W, H);
   }
 
+  /**
+   * The shared screen under a canvas point, with where its picture sits, so
+   * the UI can zoom toward the cursor and pan. Null when not over a screen.
+   */
+  screenAt(px, py) {
+    const s = this.state;
+    if (!s || (s.scene && s.scene !== "stage")) return null;
+    const hits = [...this.rects.values()].filter((r) => isScreenItem(r.id) && px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h);
+    if (!hits.length) return null;
+    const r = hits.sort((a, b) => b.z - a.z)[0];
+    const src = this.getSource(r.id);
+    const v = src?.video;
+    if (!v?.videoWidth) return null;
+    const aspect = v.videoWidth / v.videoHeight;
+    return { id: r.id, rect: { x: r.x, y: r.y, w: r.w, h: r.h }, picture: containRect(aspect, r.x, r.y, r.w, r.h), view: clampView(s.screenView?.[r.id]) };
+  }
+
   /** Divider the host can drag for the current layout (canvas px), or null. */
   splitHandle() {
     const s = this.state;
@@ -287,7 +326,21 @@ export class Compositor {
     ctx.fillRect(x, y, w, h);
     const v = src.video;
     const hasFrame = src.hasVideo && v && v.readyState >= 2 && v.videoWidth > 0;
-    if (hasFrame) {
+    if (hasFrame && it.kind === "screen") {
+      // Host-controlled zoom/pan, eased so it glides instead of jumping.
+      const target = clampView(s.screenView?.[it.id]);
+      let a = this.zoomAnim.get(it.id);
+      if (!a) this.zoomAnim.set(it.id, (a = { ...target }));
+      a.z += (target.z - a.z) * 0.18;
+      a.x += (target.x - a.x) * 0.18;
+      a.y += (target.y - a.y) * 0.18;
+      const cv = clampView(a);
+      const vw = v.videoWidth;
+      const vh = v.videoHeight;
+      const cw = vw / cv.z;
+      const ch = vh / cv.z;
+      drawRegion(ctx, v, cv.x * vw - cw / 2, cv.y * vh - ch / 2, cw, ch, x, y, w, h, r.fit);
+    } else if (hasFrame) {
       if (src.mirror && it.kind === "cam") {
         ctx.translate(2 * x + w, 0);
         ctx.scale(-1, 1);
