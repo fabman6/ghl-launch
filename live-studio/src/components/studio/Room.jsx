@@ -14,6 +14,7 @@ import {
   Palette,
   PanelRight,
   Radio,
+  ScrollText,
   Settings as SettingsIcon,
   Sparkles,
   Type,
@@ -33,6 +34,7 @@ import { BannersPanel, BrandPanel, ChatPanel, FilesPanel, PeoplePanel, ScenesPan
 import { GoLiveDialog, InviteDialog, LiveOutputs, RecordDialog, SettingsDialog } from "./Dialogs";
 import { VideoView } from "./MediaBits";
 import EffectsPanel from "./EffectsPanel";
+import Teleprompter from "./Teleprompter";
 
 function Badge({ color, label, since }) {
   const t = useElapsed(since);
@@ -128,7 +130,14 @@ export default function Room({ session, inviteLink, onLeave }) {
   const [dialog, setDialog] = useState(null);
   const [leaving, setLeaving] = useState(false);
   const [mobilePanel, setMobilePanel] = useState(false);
+  const [prompterOpen, setPrompterOpen] = useState(false);
   const s = snap.state;
+
+  // Open the teleprompter for guests when the host shares a script.
+  const sharedScript = snap.prompterRemote?.docId;
+  useEffect(() => {
+    if (sharedScript) setPrompterOpen(true);
+  }, [sharedScript]);
   const tabs = snap.isHost ? HOST_TABS : GUEST_TABS;
   const activeTab = tab ?? (snap.isHost ? "banners" : "chat");
 
@@ -320,6 +329,17 @@ export default function Room({ session, inviteLink, onLeave }) {
               <Sparkles className="h-4 w-4" />
               <span className="ml-2 hidden md:inline">Effects</span>
             </Button>
+            <Button
+              size="lg"
+              variant={prompterOpen ? "default" : "secondary"}
+              onClick={() => setPrompterOpen((v) => !v)}
+              title="Teleprompter (only you see it)"
+              className="relative"
+            >
+              <ScrollText className="h-4 w-4" />
+              <span className="ml-2 hidden md:inline">Script</span>
+              {!prompterOpen && snap.prompterRemote && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-primary" />}
+            </Button>
             <Button size="lg" variant="secondary" className="relative lg:hidden" onClick={() => setMobilePanel(true)} title="Panels">
               <PanelRight className="h-4 w-4" />
               {(snap.unread > 0 || pendingCount > 0) && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-[hsl(var(--live))]" />}
@@ -354,6 +374,7 @@ export default function Room({ session, inviteLink, onLeave }) {
       {snap.isHost && <InviteDialog link={inviteLink} open={dialog === "invite"} onOpenChange={(o) => setDialog(o ? "invite" : null)} />}
       {dialog === "settings" && <SettingsDialog session={session} snap={snap} open onOpenChange={(o) => setDialog(o ? "settings" : null)} />}
       <EffectsPanel session={session} snap={snap} open={dialog === "effects"} onOpenChange={(o) => setDialog(o ? "effects" : null)} />
+      <Teleprompter session={session} snap={snap} open={prompterOpen} onClose={() => setPrompterOpen(false)} />
     </div>
   );
 }

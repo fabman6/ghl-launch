@@ -32,6 +32,14 @@ A browser studio for live streaming and podcast recording, in the spirit of Stre
 - Auto-frame toggle: gently pans and zooms to keep you centred
 - Lighter mode (720p) toggle for slower computers; settings are remembered
 
+**Teleprompter** (only on your screen, never in the stream or recording)
+- Floating reader you can drag right under your webcam and resize, with a reading line to keep your eyes near the lens
+- Play / pause (Space or tap the text), speed, text size, restart, scroll or drag by hand, optional 3-second countdown, time left
+- Mirror mode for teleprompter glass, adjustable background and reading-line position
+- Pop out into an always-on-top window (Chrome / Edge) to place it anywhere, even on another monitor
+- Script library: signed-in users' scripts are saved to their account; guests' stay in their browser. Import .txt / .md, word count and reading time; [cues] and # headings are highlighted
+- The host can share their script with guests, who follow the host's scrolling live
+
 **Recording**
 - Composite recording of the program feed (exactly what viewers see)
 - Riverside-style separate local recordings for every participant, at full camera quality, independent of the network
@@ -57,7 +65,7 @@ A browser studio for live streaming and podcast recording, in the spirit of Stre
 | Google Drive folders + resumable upload sessions | `base44/functions/driveUpload` (Google Drive connector) |
 | Go live / restream outputs | `base44/functions/liveControl` (Cloudflare Stream API) |
 | ICE / TURN servers | `base44/functions/iceServers` |
-| Data | `base44/entities/Studio`, `Destination`, `Recording`, `Background` |
+| Data | `base44/entities/Studio`, `Destination`, `Recording`, `Background`, `Script` |
 | WebRTC mesh | `src/lib/studio/peer.js` |
 | Program compositor (canvas) | `src/lib/studio/compositor.js`, `layouts.js` |
 | Audio mixing + meters | `src/lib/studio/mixer.js` |

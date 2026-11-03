@@ -294,6 +294,8 @@ export class StudioSession extends Emitter {
       state: this.studioState,
       chat: this.chat,
       unread: this.unread,
+      prompterRemote: this.prompterRemote ?? null,
+      prompterSharing: !!this.prompterShared,
       micOn: this.micOn,
       camOn: this.camOn,
       hasMic: !!this.micTrack,
@@ -401,7 +403,10 @@ export class StudioSession extends Emitter {
     if (mine) this.me = { ...this.me, ...mine };
     this.hostPresent = roster.some((p) => p.role === "host");
     this.syncPeers();
-    if (this.isHost) this.reconcileStage();
+    if (this.isHost) {
+      this.reconcileStage();
+      this.resendPrompterIfNeeded();
+    }
     this.changed();
   }
 
@@ -482,7 +487,69 @@ export class StudioSession extends Emitter {
       this.notify("The host turned off your camera.");
     } else if (command === "message" && payload?.text) {
       this.notify(payload.text);
+    } else if (command === "prompter" && !this.isHost) {
+      this.onPrompterCommand(payload);
     }
+  }
+
+  // ---------- teleprompter sharing ----------
+  // The host can push their script and scrolling to guests. Text is sent only
+  // when it changes; play/pause/speed/seek updates carry just the position,
+  // as a fraction of the script, plus how fast it is moving.
+
+  onPrompterCommand(payload) {
+    if (!payload) {
+      if (this.prompterRemote) this.notify("The host stopped sharing the teleprompter.");
+      this.prompterRemote = null;
+      this.changed();
+      return;
+    }
+    const prev = this.prompterRemote;
+    const doc = payload.doc ?? (prev && prev.docId === payload.docId ? { title: prev.title, text: prev.text } : null);
+    if (!doc) return; // control update for a script we never received
+    if (!prev) this.notify("The host is sharing a teleprompter script with you.");
+    this.prompterRemote = {
+      docId: payload.docId,
+      title: doc.title,
+      text: doc.text,
+      playing: !!payload.ctl?.playing,
+      progress: Number(payload.ctl?.progress) || 0,
+      rate: Number(payload.ctl?.rate) || 0,
+      countdownUntil: payload.ctl?.countdownMs ? performance.now() + payload.ctl.countdownMs : 0,
+      receivedAt: performance.now(),
+    };
+    this.emit("prompter", this.prompterRemote);
+    this.changed();
+  }
+
+  /** Host: start or update sharing. Pass doc when the text changed. */
+  sharePrompter({ docId, doc, ctl }) {
+    if (!this.isHost) return;
+    const prev = this.prompterShared;
+    const docChanged = !prev || prev.docId !== docId || (doc && (doc.text !== prev.doc.text || doc.title !== prev.doc.title));
+    this.prompterShared = { docId, doc: doc ?? prev?.doc, ctl };
+    this.remote("all", "prompter", docChanged ? this.prompterShared : { docId, ctl });
+    if (!prev) this.changed();
+  }
+
+  stopSharingPrompter() {
+    if (!this.prompterShared) return;
+    this.prompterShared = null;
+    this.remote("all", "prompter", null);
+    this.changed();
+  }
+
+  /** Bring guests who were admitted after sharing started up to date. */
+  resendPrompterIfNeeded() {
+    const admitted = new Set(this.roster.filter((p) => p.admitted && p.id !== this.id).map((p) => p.id));
+    const fresh = [...admitted].filter((id) => !this.prompterSeen?.has(id));
+    this.prompterSeen = admitted;
+    if (!this.prompterShared || !fresh.length) return;
+    const ctl = this.prompterShared.ctl ?? {};
+    // Their copy starts from where the host's prompter is right now.
+    const elapsed = ctl.playing && ctl.sentAt ? (performance.now() - ctl.sentAt) / 1000 : 0;
+    const now = { ...ctl, progress: Math.min(1, (ctl.progress || 0) + (ctl.rate || 0) * elapsed), countdownMs: 0 };
+    for (const id of fresh) this.remote(id, "prompter", { ...this.prompterShared, ctl: now });
   }
 
   // ---------- shared studio state ----------
