@@ -712,7 +712,7 @@ export default function Teleprompter({ session, snap, open, onClose }) {
           <Settings2 className="h-4 w-4" />
         </IconBtn>
         {!following && (
-          <IconBtn title="Edit and choose scripts" onClick={() => setEditing(true)}>
+          <IconBtn title={popWin ? "Edit and choose scripts (opens in the studio window)" : "Edit and choose scripts"} onClick={() => setEditing(true)}>
             <SquarePen className="h-4 w-4" />
           </IconBtn>
         )}
@@ -825,7 +825,7 @@ export default function Teleprompter({ session, snap, open, onClose }) {
                 </span>
               </div>
             )}
-            {!isPlaying && !countdown && !following && (
+            {!isPlaying && !countdown && !following && progress < 0.002 && vpHeight > 120 && (
               <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-white/10 px-3 py-1 text-[11px] text-white/70">
                 Tap or press Space to start · scroll to move
               </div>
